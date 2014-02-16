@@ -1,0 +1,9 @@
+#!/usr/bin/python2.7
+import netsnmp
+
+bind1 = netsnmp.Varbind('1.3.6.1.2.1.1.1.0')
+
+x = netsnmp.snmpget(bind1, DestHost='172.16.254.150', Version=2, Community='delaware')
+
+print x
+

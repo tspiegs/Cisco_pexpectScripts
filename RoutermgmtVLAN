@@ -1,0 +1,118 @@
+#!/usr/bin/python
+
+import pexpect 
+import getpass
+import sys
+import time
+import getopt
+import re
+import time
+
+if len(sys.argv) > 2:
+	options, remainder = getopt.getopt(sys.argv[1:], 'i:l', ['ifile=','log'])
+	print(options)
+	for opt, arg in options:
+		if opt in ('-i', '--ifile'):
+			ipaddy = open(arg, "r")
+			print(arg)
+			hosts = ipaddy.readlines()
+			print(hosts)
+		elif opt in ('-l', '--log'):
+			log = file('./mylog','w+') 
+		else:
+			log = file('./mylog','w+')
+	log = file('./mylog','w+')
+	print log 
+if len(sys.argv) < 2:
+	hosts = []
+	hosts.append(raw_input('Enter SSH IP Address: '))
+
+int2up=open('./interfaceup', 'w')
+ssh_newkey = 'Are you sure you want to continue connecting'
+user = 'tom'
+vlan = raw_input("Enter routed vlan:  ")
+newvlan = raw_input("Enter new management vlan:  ")
+passwd = getpass.getpass("Enter Password: ")
+en = getpass.getpass("Enter Enable Password: ")
+
+for host in hosts:
+	ssh = pexpect.spawn ("ssh " + user + "@" + host)
+	i=ssh.expect([ssh_newkey,'.*assword:.*',pexpect.EOF,pexpect.TIMEOUT],5)
+	if i==0:
+		print "Accepting Key"
+		ssh.sendline('yes')
+		i=ssh.expect([ssh_newkey,'.*assword:.*',pexpect.EOF,pexpect.TIMEOUT],5)	
+	if i==1:
+		print "expect gave your password"
+		ssh.sendline(passwd)
+	elif i==2:
+		print "I can't do shit"
+		pass
+	elif i==3:
+		print "timeout"
+		pass
+
+	ssh.expect ('.*>.*')
+	ssh.sendline ('ena')
+	ssh.expect ('.*assword:.*')
+	ssh.sendline (en)
+
+	i=ssh.expect (['.*#.*','.*>.*'])
+	if i==0:
+		print "now in enable mode"
+	if i==1:
+		print "wrong enable password.  Exiting ssh session"
+		int2up.write(host, 'wrong enable')		
+		ssh.sendline("exit")
+		exit()
+	print host
+	ssh.sendline("terminal length 0")
+	ssh.expect('.*#.*')
+	ssh.sendline("write")
+	ssh.expect('.*#.*')
+	r= host
+	twooct = r.split(".")[1]
+	ssh.sendline('conf t')
+	ssh.expect('.*config.*')
+	ssh.sendline('interface vlan' + newvlan)
+ 	ssh.sendline('ip address 10.'+twooct+'.252.1 255.255.254.0')	
+	ssh.sendline('exit')
+	ssh.sendline('vlan '+newvlan)
+	ssh.sendline('name DTI_Mgmt')
+	ssh.sendline('exit')
+	ssh.expect('.*#.*')
+	ssh.sendline('router bgp '+vlan)
+	ssh.sendline('address-family ipv4')
+	ssh.sendline('network 10.'+twooct+'.252.0 mask 255.255.254.0')
+	ssh.sendline('interface fa0/24')
+	ssh.sendline('switchport trunk allowed vlan add '+newvlan)
+	ssh.expect('.*#.*')
+	print ssh.after
+	ssh.sendline("end")
+	ssh.expect('.*#.*')
+	time.sleep( 5 )
+	while True:
+		ssh.sendline("show ip interface brief vlan"+newvlan)
+		time.sleep ( 1)
+		ssh.expect('.*#.*')
+		i=ssh.after
+		ud=re.search(r'up(.*?)up', i,re.DOTALL)
+		if ud:
+			print "interface up so continuing script"
+			break	
+		else:
+			print "interface is still down"
+			time.sleep( 5 )
+
+	ssh.sendline("exit")
+	ssh.terminate()
+	
+	print "done with host moving to next router"
+
+sys.exit()
+
+
+
+
+
+

@@ -1,0 +1,92 @@
+rserver redirect Test-HRIS-80
+  webhost-redirection https://%h/%p 301
+  inservice
+
+
+rserver host Test-HRIS.44
+  ip address 172.31.106.44
+  inservice
+
+rserver host Test-HRIS.45
+  ip address 172.31.106.45
+  inservice
+
+
+serverfarm redirect Test-HRIS-80
+  failaction purge
+  rserver Test-HRIS-80
+    inservice
+
+
+
+serverfarm host Test-HRIS-443
+  failaction purge
+  probe ICMP
+  rserver HRISTest.45 443
+    inservice
+  rserver  HRISTest.44 443
+    inservice
+
+
+class-map match-all Test-HRIS-443
+  2 match virtual-address 172.31.106.43 tcp eq https 
+
+class-map match-all Test-HRIS-80
+  2 match virtual-address 172.31.106.43 tcp eq 80
+
+sticky ip-netmask 255.255.255.255 address both Test-HRIS-443-Sticky
+  serverfarm Test-HRIS-443
+
+
+
+
+ssl-proxy service Backend-Proxy
+ssl-proxy service Test-HRIS
+  chaingroup IntermediateCert
+
+
+policy-map type loadbalance first-match Test-HRIS-443-l7slb
+  class class-default
+    sticky-serverfarm Test-HRIS-443-Sticky
+    ssl-proxy client Backend-Proxy
+
+
+
+
+
+
+policy-map multi-match int691-n2
+  class Test-HRIS-443
+    loadbalance vip inservice
+    loadbalance policy Test-HRIS-443-l7slb
+    loadbalance vip icmp-reply active
+  
+
+
+interface bvi 4
+  ip address 172.31.106.37 255.255.255.0
+  alias 172.31.106.38 255.255.255.0
+  peer ip address 172.31.106.39 255.255.255.0
+  description 172.31.106.x
+  no shutdown
+
+interface vlan 691
+  description DTI-PrivFEAppDB-172.31.106.0/23
+  bridge-group 4
+  mac-sticky enable
+  no icmp-guard
+  access-group input In-Out-Traffic
+  access-group output In-Out-Traffic
+  service-policy input int691-n2
+  no shutdown
+
+interface vlan 697
+  description DTI-PrivFEAppDB-Inside-172.31.106.0/23
+  bridge-group 4
+  mac-sticky enable
+  no icmp-guard
+  access-group input In-Out-Traffic
+  access-group output In-Out-Traffic
+  service-policy input int691-n2
+  no shutdown
+

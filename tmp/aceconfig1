@@ -1,0 +1,599 @@
+00001 	
+
+Generating configuration....
+
+00002 	
+
+logging enable
+
+00003 	
+
+logging timestamp
+
+00004 	
+
+logging trap 4
+
+00005 	
+
+logging buffered 4
+
+00006 	
+
+logging device-id string 172.31.32.5/DTI-Hosted-Tier2
+
+00007 	
+
+logging host 172.31.6.5 udp/514 
+
+00008 	
+
+logging message 111008 level 4
+
+00009 	
+
+login timeout 30
+
+00010 	
+
+radius-server key 7 "$qqlmynwsgszi2013"
+
+00011 	
+
+radius-server host 172.16.1.105 auth-port 1645 authentication accounting 
+
+00012 	
+
+radius-server host 172.16.3.105 auth-port 1645 authentication accounting 
+
+00013 	
+
+aaa group server radius rad-group
+
+00014 	
+
+  server 172.16.1.105
+
+00015 	
+
+  server 172.16.3.105
+
+00016 	
+
+aaa authentication login default group rad-group local 
+
+00017 	
+
+access-list bpdu_acl ethertype permit bpdu
+
+00018 	
+
+access-list In-Out-Traffic line 1 extended permit icmp any any 
+
+00019 	
+
+access-list In-Out-Traffic line 2 extended permit ip any any 
+
+00020 	
+
+access-list In-Out-Traffic line 3 extended permit tcp any any 
+
+00021 	
+
+access-list In-Out-Traffic line 4 extended permit udp any any 
+
+00022 	
+
+access-list anyone line 15 extended permit ip any any 
+
+00023 	
+
+probe icmp ICMP
+
+00024 	
+
+  interval 2
+
+00025 	
+
+  faildetect 2
+
+00026 	
+
+  passdetect count 1
+
+00027 	
+
+probe tcp Port443
+
+00028 	
+
+  port 443
+
+00029 	
+
+  interval 30
+
+00030 	
+
+  faildetect 2
+
+00031 	
+
+  passdetect interval 15
+
+00032 	
+
+  passdetect count 2
+
+00033 	
+
+probe tcp Port80
+
+00034 	
+
+  interval 30
+
+00035 	
+
+  faildetect 2
+
+00036 	
+
+  passdetect interval 120
+
+00037 	
+
+  passdetect count 2
+
+00038 	
+
+rserver host ICIS-Prod.104
+
+00039 	
+
+  ip address 172.31.96.104
+
+00040 	
+
+  inservice
+
+00041 	
+
+rserver host ICIS-Prod.105
+
+00042 	
+
+  ip address 172.31.96.105
+
+00043 	
+
+  inservice
+
+00044 	
+
+rserver host ICIS-Prod.106
+
+00045 	
+
+  ip address 172.31.96.106
+
+00046 	
+
+  inservice
+
+00047 	
+
+rserver host ICIS-Prod.107
+
+00048 	
+
+  ip address 172.31.96.107
+
+00049 	
+
+  inservice
+
+00050 	
+
+rserver host ICIS-Prod.108
+
+00051 	
+
+  ip address 172.31.96.108
+
+00052 	
+
+  inservice
+
+00053 	
+
+rserver redirect Redirect80
+
+00054 	
+
+  webhost-redirection https://%h/%p 301
+
+00055 	
+
+  inservice
+
+00056 	
+
+serverfarm host ICIS-Prod-443
+
+00057 	
+
+  failaction purge
+
+00058 	
+
+  probe Port443
+
+00059 	
+
+  rserver ICIS-Prod.104 443
+
+00060 	
+
+    inservice
+
+00061 	
+
+  rserver ICIS-Prod.105 443
+
+00062 	
+
+    inservice
+
+00063 	
+
+  rserver ICIS-Prod.106 443
+
+00064 	
+
+    inservice
+
+00065 	
+
+  rserver ICIS-Prod.107 443
+
+00066 	
+
+    inservice
+
+00067 	
+
+  rserver ICIS-Prod.108 443
+
+00068 	
+
+    inservice
+
+00069 	
+
+serverfarm host ICIS-Prod-80
+
+00070 	
+
+  failaction purge
+
+00071 	
+
+  probe Port80
+
+00072 	
+
+  rserver ICIS-Prod.104 80
+
+00073 	
+
+    inservice
+
+00074 	
+
+  rserver ICIS-Prod.105 80
+
+00075 	
+
+    inservice
+
+00076 	
+
+  rserver ICIS-Prod.106 80
+
+00077 	
+
+    inservice
+
+00078 	
+
+  rserver ICIS-Prod.107 80
+
+00079 	
+
+    inservice
+
+00080 	
+
+  rserver ICIS-Prod.108 80
+
+00081 	
+
+    inservice
+
+00082 	
+
+sticky ip-netmask 255.255.255.255 address both ICIS-Prod-80-Sticky
+
+00083 	
+
+  serverfarm ICIS-Prod-80
+
+00084 	
+
+sticky ip-netmask 255.255.255.255 address both ICIS-Prod-443-Sticky
+
+00085 	
+
+  serverfarm ICIS-Prod-443
+
+00086 	
+
+class-map type management match-any ANM_management
+
+00087 	
+
+  3 match protocol snmp any
+
+00088 	
+
+  4 match protocol ssh any
+
+00089 	
+
+  5 match protocol icmp any
+
+00090 	
+
+  6 match protocol https any
+
+00091 	
+
+  7 match protocol kalap-udp any
+
+00092 	
+
+class-map match-all ICIS-Prod-443
+
+00093 	
+
+  2 match virtual-address 172.31.96.103 tcp eq https
+
+00094 	
+
+class-map match-all ICIS-Prod-80
+
+00095 	
+
+  2 match virtual-address 172.31.96.103 tcp eq www
+
+00096 	
+
+policy-map type management first-match ANM_management
+
+00097 	
+
+  class ANM_management
+
+00098 	
+
+    permit
+
+00099 	
+
+policy-map type loadbalance first-match ICIS-Prod-443-l7slb
+
+00100 	
+
+  class class-default
+
+00101 	
+
+    sticky-serverfarm ICIS-Prod-443-Sticky
+
+00102 	
+
+policy-map type loadbalance first-match ICIS-Prod-80-l7slb
+
+00103 	
+
+  class class-default
+
+00104 	
+
+    sticky-serverfarm ICIS-Prod-80-Sticky
+
+00105 	
+
+policy-map multi-match int589-n2
+
+00106 	
+
+  class ICIS-Prod-443
+
+00107 	
+
+    loadbalance vip inservice
+
+00108 	
+
+    loadbalance policy ICIS-Prod-443-l7slb
+
+00109 	
+
+    loadbalance vip icmp-reply active
+
+00110 	
+
+  class ICIS-Prod-80
+
+00111 	
+
+    loadbalance vip inservice
+
+00112 	
+
+    loadbalance policy ICIS-Prod-80-l7slb
+
+00113 	
+
+    loadbalance vip icmp-reply active
+
+00114 	
+
+interface vlan 426
+
+00115 	
+
+  ip address 172.31.32.24 255.255.255.192
+
+00116 	
+
+  peer ip address 172.31.32.25 255.255.255.192
+
+00117 	
+
+  access-group input anyone
+
+00118 	
+
+  service-policy input ANM_management
+
+00119 	
+
+  no shutdown
+
+00120 	
+
+interface vlan 589
+
+00121 	
+
+  description DTI-PubApp-ACE-172.31.96.0/23
+
+00122 	
+
+  bridge-group 1
+
+00123 	
+
+  mac-sticky enable
+
+00124 	
+
+  no icmp-guard
+
+00125 	
+
+  access-group input In-Out-Traffic
+
+00126 	
+
+  access-group output In-Out-Traffic
+
+00127 	
+
+  service-policy input int589-n2
+
+00128 	
+
+  no shutdown
+
+00129 	
+
+interface vlan 689
+
+00130 	
+
+  description DTI-PubApp-172.31.96.0/23
+
+00131 	
+
+  bridge-group 1
+
+00132 	
+
+  mac-sticky enable
+
+00133 	
+
+  no icmp-guard
+
+00134 	
+
+  access-group input In-Out-Traffic
+
+00135 	
+
+  access-group output In-Out-Traffic
+
+00136 	
+
+  service-policy input int589-n2
+
+00137 	
+
+  no shutdown
+
+00138 	
+
+interface bvi 1
+
+00139 	
+
+  ip address 172.31.97.252 255.255.254.0
+
+00140 	
+
+  alias 172.31.97.253 255.255.254.0
+
+00141 	
+
+  peer ip address 172.31.97.254 255.255.254.0
+
+00142 	
+
+  description 172.31.96.0/23
+
+00143 	
+
+  no shutdown
+
+00144 	
+
+ip route 172.16.70.0 255.255.255.0 172.31.32.1
+
+00145 	
+
+ip route 172.16.1.105 255.255.255.255 172.31.32.1
+
+00146 	
+
+ip route 172.16.3.105 255.255.255.255 172.31.32.1
+
+00147 	
+
+snmp-server community anm group Network-Monitor
+
+00148 	
+
+snmp-server user ace-solarwinds Network-Monitor auth md5 0x16324ef308b8879ae00fa96bbb4b73dd peer 0x16324ef308b8879ae00fa96bbb4b73dd priv aes-128 0x8582524a6fb60f8fe5f77722d2ca3ed9 peer 0x8582524a6fb60f8fe5f77722d2ca3ed9 localizedkey
+
+00149 	
+
+snmp-server trap-source vlan 426
+
+00150 	
+
+username cirrus password 5 $1$PAlUoMMI$MPsO8Zlfb.eL0ZYOa4ZZp/  role Admin domain default-domain

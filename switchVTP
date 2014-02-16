@@ -1,0 +1,182 @@
+#!/usr/bin/python
+
+import pexpect 
+import getpass
+import sys
+import time
+import getopt
+import re
+import os
+
+if len(sys.argv) > 2:
+	options, remainder = getopt.getopt(sys.argv[1:], 'i:l', ['ifile=','log'])
+	print(options)
+	for opt, arg in options:
+		if opt in ('-i', '--ifile'):
+			ipaddy = open(arg, "r")
+			print(arg)
+			hosts = ipaddy.readlines()
+			print(hosts)
+		elif opt in ('-l', '--log'):
+			log = file('./mylog','w+') 
+		else:
+			log = file('./mylog','w+')
+	log = file('./mylog','w+')
+	print log 
+if len(sys.argv) < 2:
+	hosts = []
+	hosts.append(raw_input('Enter SSH IP Address: '))
+
+ssh_newkey = 'Are you sure you want to continue connecting'
+user = 'tom'
+passwd = getpass.getpass("Enter Password: ")
+en = getpass.getpass("Enter Enable Password: ")
+newvlan = raw_input("Enter new vlan:  ")
+newvlanname = raw_input("Enter new vlan name:  ")
+VTPServer=open('./vtpserver','w')
+cantfindvtp=open('./novtp','w')
+for host in hosts:	
+	logvar = []
+	reset = []
+	resettest = False
+	routerint = False
+	n = False
+	fouroct = host.split(".")[1]
+	host = "10."+fouroct+".1.21"
+	host = host.replace("\n","")
+	print host
+	ssh = pexpect.spawn ("ssh " + user + "@" + host)
+	#ssh.logfile= something i dont know its not working.
+	i=ssh.expect([ssh_newkey,'.*assword:.*',pexpect.EOF,pexpect.TIMEOUT],5)
+	if i==0:
+		print "Accepting Key"
+		ssh.sendline('yes')
+		i=ssh.expect([ssh_newkey,'.*assword:.*',pexpect.EOF,pexpect.TIMEOUT],5)	
+	if i==1:
+		print "expect gave your password"
+		ssh.sendline(passwd)
+	elif i==2:
+		print "I can't do shit"
+		pass
+	elif i==3:
+		print "timeout"
+		pass
+
+	ssh.expect ('.*>.*')
+	ssh.sendline ('ena')
+	ssh.expect ('.*assword:.*')
+	ssh.sendline (en)
+	
+	i=ssh.expect (['.*#.*','.*>.*'])
+	if i==0:
+		print "now in enable mode"
+	if i==1:
+		print "wrong enable password.  Exiting ssh session"		
+		ssh.sendline("exit")
+		exit()
+	print host
+	#face=open('./interfaces','w')
+	ssh.sendline("terminal length 0")
+	ssh.expect('.*#.*')
+	ssh.sendline("show vtp status")
+	ssh.expect('.*#.*')
+	i=ssh.after
+	print i
+	r=re.search(r'VTP Operating Mode(.*?)Maximum VLANs',i,re.DOTALL)
+	r=r.group()
+	CS = re.search(r'Client',r,re.DOTALL)
+	if CS:
+		print("This switch is the VTP Client.  Connecting to the .10 to check that")
+		twooct = host.split(".")[1]
+		threeoct = host.split(".")[2]
+		host2 = "10."+twooct+"."+threeoct+".10"
+		print host2
+		ssh.sendline("exit")
+		ssh.terminate()
+	
+	
+		ssh = pexpect.spawn ("ssh " + user + "@" + host2)
+		i=ssh.expect([ssh_newkey,'.*assword:.*',pexpect.EOF,pexpect.TIMEOUT],5)
+		if i==0:
+			print "Accepting Key"
+			ssh.sendline('yes')
+			i=ssh.expect([ssh_newkey,'.*assword:.*',pexpect.EOF,pexpect.TIMEOUT],5)	
+		if i==1:
+			print "expect gave your password"
+			ssh.sendline(passwd)
+		elif i==2:
+			print "I can't do shit"
+			pass
+		elif i==3:
+			print "timeout"
+			pass
+
+		ssh.expect ('.*>.*')
+		ssh.sendline ('ena')
+		ssh.expect ('.*assword:.*')
+		ssh.sendline (en)
+
+		i=ssh.expect (['.*#.*','.*>.*'])
+		if i==0:
+			print "now in enable mode"
+		if i==1:
+			print "wrong enable password.  Exiting ssh session"	
+			ssh.sendline("exit")
+			exit()
+		ssh.sendline("terminal length 0")
+		ssh.expect('.*#.*')
+		ssh.sendline("show vtp status")
+		ssh.expect('.*#.*')
+		i=ssh.after
+		print i
+		r=re.search(r'VTP Operating Mode(.*?)Maximum VLANs',i,re.DOTALL)
+		r=r.group()
+		CS = re.search(r'Client',r,re.DOTALL)
+		if CS:
+			print("Can not find the VTP status.  Manually find the VTP server")
+			cantfindvtp.write(host + "21 and 10 are both clients")
+		else:
+			CS2 = re.search(r'Server',r,re.DOTALL)
+			if CS2:
+				print("This switch is the VTP Server.  Setting the VLAN")
+				ssh.sendline('conf t')
+				ssh.expect('.*config.*')
+				ssh.sendline('vlan ' + newvlan)
+				ssh.sendline('name '+ newvlanname)
+				ssh.sendline('end')
+				ssh.expect('.*#.*')
+				ssh.sendline("write")
+				print ssh.after
+				VTPServer.write(host2)
+			else:
+				print("Can not find the VTP status.  Manually find the VTP server")
+				cantfindvtp.write(host2 + "Could not find status of the 10 and 21 is client")
+		
+	else:
+		CS2 = re.search(r'Server',r,re.DOTALL)
+		if CS2:
+			print("This switch is the VTP Server.  Setting the VLAN")
+			ssh.sendline('conf t')
+			ssh.expect('.*config.*')
+			ssh.sendline('vlan ' + newvlan)
+			ssh.sendline('name '+ newvlanname)
+			ssh.sendline('end')
+			ssh.expect('.*#.*')
+			ssh.sendline("write")
+			print ssh.after
+			VTPServer.write(host)
+		else:
+			print("Can not find the VTP status.  Manually find the VTP server")
+			cantfindvtp.write(host + "Could not find status of the 21")
+	ssh.sendline("end")
+	ssh.sendline("exit")	
+	ssh.terminate()
+	print "done with host moving to next router"
+
+sys.exit()
+
+
+
+
+
+

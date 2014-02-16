@@ -1,0 +1,53 @@
+rserver host Casino-Mlo.234
+  ip address 172.31.106.234
+  inservice
+
+rserver host Casino-Mlo.235
+  ip address 172.31.106.235
+  inservice
+
+
+serverfarm host Casino-Mlo443
+  failaction purge
+  probe Port443
+  rserver Casino-Mlo.234 443
+    inservice
+  rserver  Casino-Mlo.235 443
+    inservice
+
+
+sticky ip-netmask 255.255.255.255 address both Casino-Mlo-Sticky443
+  serverfarm Casino-Mlo443
+
+
+class-map match-all Casino-Mlo443
+  2 match virtual-address 172.31.106.233 tcp eq https 
+class-map match-all Casino-Mlo80
+  2 match virtual-address 172.31.106.233 tcp eq http 
+
+
+policy-map type loadbalance first-match Casino-Mlo443-l7slb
+  class class-default
+    sticky-serverfarm Casino-Mlo-Sticky443
+
+
+policy-map type loadbalance first-match Casino-Mlo80-l7slb
+  class class-default
+    serverfarm Redirect-ServerFarm
+
+
+
+
+policy-map multi-match int691-n2
+  class Casino-Mlo443
+    loadbalance vip inservice
+    loadbalance policy Casino-Mlo443-l7slb
+    loadbalance vip icmp-reply active
+
+
+class Casino-Mlo80
+    loadbalance vip inservice
+    loadbalance policy Casino-Mlo80-l7slb
+    loadbalance vip icmp-reply active
+  
+

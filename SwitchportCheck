@@ -1,0 +1,105 @@
+#!/usr/bin/python
+
+import pexpect 
+import getpass
+import sys
+import time
+import getopt
+import re
+import time
+import os
+import subprocess
+
+if len(sys.argv) > 2:
+	options, remainder = getopt.getopt(sys.argv[1:], 'i:l', ['ifile=','log'])
+	print(options)
+	for opt, arg in options:
+		if opt in ('-i', '--ifile'):
+			ipaddy = open(arg, "r")
+			print(arg)
+			hosts = ipaddy.readlines()
+			print(hosts)
+		elif opt in ('-l', '--log'):
+			log = file('./mylog','w+') 
+		else:
+			log = file('./mylog','w+')
+	log = file('./mylog','w+')
+	print log 
+if len(sys.argv) < 2:
+	hosts = []
+	hosts.append(raw_input('Enter SSH IP Address: '))
+
+ssh_newkey = 'Are you sure you want to continue connecting'
+user = 'toms'
+passwd = getpass.getpass("Enter Password: ")
+en = getpass.getpass("Enter Enable Password: ")
+
+for host in hosts:
+	ssh = pexpect.spawn ("ssh " + user + "@" + host)
+	#ssh.logfile= something i dont know its not working.
+	i=ssh.expect([ssh_newkey,'.*assword:.*',pexpect.EOF,pexpect.TIMEOUT],5)
+	if i==0:
+		print "Accepting Key"
+		ssh.sendline('yes')
+		i=ssh.expect([ssh_newkey,'.*assword:.*',pexpect.EOF,pexpect.TIMEOUT],5)	
+	if i==1:
+		print "expect gave your password"
+		ssh.sendline(passwd)
+	elif i==2:
+		print "I can't do shit"
+		pass
+	elif i==3:
+		print "timeout"
+		pass
+
+	ssh.expect ('.*>.*')
+	ssh.sendline ('ena')
+	ssh.expect ('.*assword:.*')
+	ssh.sendline (en)
+
+	i=ssh.expect (['.*#.*','.*>.*'])
+	if i==0:
+		print "now in enable mode"
+	if i==1:
+		print "wrong enable password.  Exiting ssh session"
+		int2up.write(host, 'wrong enable')		
+		ssh.sendline("exit")
+		exit()
+	print host
+	ssh.sendline("terminal length 0")
+	ssh.expect('.*#.*')
+	ssh.sendline("write")
+	ssh.expect('.*#.*')
+
+	ssh.sendline("show int status")
+	ssh.expect('.*#.*')
+	i=ssh.after
+	face=open('./tmp/tmp1','w')
+	face.write(i)
+	p=os.popen("""cat tmp1 | grep BaseTX | cut -c 1-10,40-50 | awk '{if ($2 >= 2 && $2 !~ "trunk" && $2 !~ "routed") print $1}'""")
+	c=os.system("""cat tmp1 | grep BaseTX | cut -c 1-10,40-50 | awk '{if ($2 == "trunk") print $1}'""")
+	access=open('./tmp/tmpaccess','r+')
+	trunk=open('./tmp/tmptrunk','r+')
+	ssh.sendline('conf t')
+	ssh.expect('.*config.*')
+	for line in access:
+		ssh.sendline('interface ' + line)
+		ssh.sendline('auto qos voip cisco-phone')
+	for line in trunk:
+		ssh.sendline('interface ' +line)
+		ssh.sendline('auto qos trust')	
+	ssh.sendline("end")
+	ssh.expect('.*#.*')
+	print ssh.after
+	ssh.terminate()
+	
+	
+	print "done with host moving to next router"
+
+sys.exit()
+
+
+
+
+
+

@@ -1,0 +1,192 @@
+#!/usr/bin/python
+
+import pexpect 
+import getpass
+import sys
+import time
+import getopt
+import re
+import time
+
+if len(sys.argv) > 2:
+	options, remainder = getopt.getopt(sys.argv[1:], 'i:l', ['ifile=','log'])
+	print(options)
+	for opt, arg in options:
+		if opt in ('-i', '--ifile'):
+			ipaddy = open(arg, "r")
+			print(arg)
+			hosts = ipaddy.readlines()
+			print(hosts)
+		elif opt in ('-l', '--log'):
+			log = file('./mylog','w+') 
+		else:
+			log = file('./mylog','w+')
+	log = file('./mylog','w+')
+	print log 
+if len(sys.argv) < 2:
+	hosts = []
+	hosts.append(raw_input('Enter SSH IP Address: '))
+
+int2up=open('./interfaceup', 'w')
+ssh_newkey = 'Are you sure you want to continue connecting'
+user = 'tom'
+vlan = raw_input("Enter current management vlan:  ")
+newvlan = raw_input("Enter new management vlan:  ")
+passwd = getpass.getpass("Enter Password: ")
+en = getpass.getpass("Enter Enable Password: ")
+
+for host in hosts:
+	ssh = pexpect.spawn ("ssh " + user + "@" + host)
+	#ssh.logfile= something i dont know its not working.
+	i=ssh.expect([ssh_newkey,'.*assword:.*',pexpect.EOF,pexpect.TIMEOUT],5)
+	if i==0:
+		print "Accepting Key"
+		ssh.sendline('yes')
+		i=ssh.expect([ssh_newkey,'.*assword:.*',pexpect.EOF,pexpect.TIMEOUT],5)	
+	if i==1:
+		print "expect gave your password"
+		ssh.sendline(passwd)
+	elif i==2:
+		print "I can't do shit"
+		pass
+	elif i==3:
+		print "timeout"
+		pass
+
+	ssh.expect ('.*>.*')
+	ssh.sendline ('ena')
+	ssh.expect ('.*assword:.*')
+	ssh.sendline (en)
+
+	i=ssh.expect (['.*#.*','.*>.*'])
+	if i==0:
+		print "now in enable mode"
+	if i==1:
+		print "wrong enable password.  Exiting ssh session"
+		int2up.write(host, 'wrong enable')		
+		ssh.sendline("exit")
+		exit()
+	print host
+	ssh.sendline("terminal length 0")
+	ssh.expect('.*#.*')
+	ssh.sendline("write")
+	ssh.expect('.*#.*')
+	#ssh.sendline("show ip interface fa0/2")
+	#ssh.expect('.*#.*')
+	#i=ssh.after
+	#print i
+	#ud=re.search(r'down', i)
+	#if ud:
+#		print "interface down so continuing script"
+	#else:
+	#	print "interface is up,  Logging and exiting"
+#		int2up.write(host)		
+#		ssh.sendline("exit")
+#		exit()
+	ssh.sendline("show run interface vlan" + vlan)
+	ssh.expect('.*#.*')
+	i=ssh.after
+	print i
+	face=open('./vlandata','w')
+	r=re.search(r'interface Vlan(.*?)end',i,re.DOTALL)
+	r=r.group()
+	r=r.replace("interface Vlan" + vlan,"")
+	r=r.replace("end","")
+	r=r.replace(".1.",".252.").replace("255.255.224.0","255.255.254.0")
+	newip = r.split(" ")[3]
+	twooct = r.split(".")[1]
+	face.write(r)
+	print newip
+	face=open('./vlandata','r+')
+	ssh.sendline('conf t')
+	ssh.expect('.*config.*')
+	ssh.sendline('interface vlan' + newvlan)
+	for line in face:
+		ssh.sendline(line)
+	ssh.sendline('exit')
+	ssh.sendline('ip default-gateway 10.'+twooct+'.252.1')
+	ssh.expect('.*#.*')
+	print ssh.after
+	ssh.sendline("end")
+	ssh.expect('.*#.*')
+	time.sleep( 5 )
+	while True:
+		ssh.sendline("show ip interface brief vlan"+newvlan)
+		time.sleep ( 1)
+		ssh.expect('.*#.*')
+		i=ssh.after
+		ud=re.search(r'up(.*?)up', i,re.DOTALL)
+		if ud:
+			print "interface up so continuing script"
+			break	
+		else:
+			print "interface is still down"
+			time.sleep( 5 )
+	time.sleep ( 10 )
+
+
+#	ssh.sendline("ping 10."+twooct+".254.1")
+#	i = ssh.expect('.*#.*')
+#	ud=re.search(r'!', i)
+#	if ud:
+#		print "new interface is up so continuing script"
+#	else:
+#		print "interface is still down.  Check "+ host + " before next host"		
+#		ssh.sendline("exit")
+#		exit()
+	ssh.sendline("exit")
+	ssh.terminate()
+	
+	
+	ssh = pexpect.spawn ("ssh " + user + "@" + newip)
+	i=ssh.expect([ssh_newkey,'.*assword:.*',pexpect.EOF,pexpect.TIMEOUT],5)
+	if i==0:
+		print "Accepting Key"
+		ssh.sendline('yes')
+		i=ssh.expect([ssh_newkey,'.*assword:.*',pexpect.EOF,pexpect.TIMEOUT],5)	
+	if i==1:
+		print "expect gave your password"
+		ssh.sendline(passwd)
+	elif i==2:
+		print "I can't do shit"
+		pass
+	elif i==3:
+		print "timeout"
+		pass
+
+	ssh.expect ('.*>.*')
+	ssh.sendline ('ena')
+	ssh.expect ('.*assword:.*')
+	ssh.sendline (en)
+
+	i=ssh.expect (['.*#.*','.*>.*'])
+	if i==0:
+		print "now in enable mode"
+	if i==1:
+		print "wrong enable password.  Exiting ssh session"
+		int2up.write(host, 'wrong enable')		
+		ssh.sendline("exit")
+		exit()
+	ssh.sendline("conf t")
+	ssh.expect('.*config.*')
+	#ssh.sendline('ip default-gateway 10.'+twooct+'.254.1')
+	#ssh.expect('.*#.*')
+	ssh.sendline('no interface vlan ' + vlan)
+	ssh.expect('.*#.*')
+	ssh.sendline(" ")
+	print ssh.after
+	ssh.sendline('end')	
+	ssh.sendline("write")
+	ssh.sendline('exit')
+	
+#	ssh.sendline("write")
+#	
+	print "done with host moving to next router"
+
+sys.exit()
+
+
+
+
+
+

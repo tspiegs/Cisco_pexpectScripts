@@ -1,0 +1,96 @@
+#!/usr/bin/python
+
+import pexpect 
+import getpass
+import sys
+import time
+import getopt
+import re
+import os
+
+if len(sys.argv) > 2:
+	options, remainder = getopt.getopt(sys.argv[1:], 'i:l', ['ifile=','log'])
+	print(options)
+	for opt, arg in options:
+		if opt in ('-i', '--ifile'):
+			ipaddy = open(arg, "r")
+			print(arg)
+			hosts = ipaddy.readlines()
+			print(hosts)
+		elif opt in ('-l', '--log'):
+			log = file('./mylog','w+') 
+		else:
+			log = file('./mylog','w+')
+	log = file('./mylog','w+')
+	print log 
+if len(sys.argv) < 2:
+	hosts = []
+	hosts.append(raw_input('Enter SSH IP Address: '))
+
+ssh_newkey = 'Are you sure you want to continue connecting'
+user = 'tom'
+passwd = getpass.getpass("Enter Password: ")
+en = getpass.getpass("Enter Enable Password: ")
+
+for host in hosts:	
+	logvar = []
+	reset = []
+	resettest = False
+	routerint = False
+	n = False
+	dist = host.split(",")[1]
+	host = host.split(",")[0]
+	host = host.replace("\n","")
+	print host
+	print dist
+	ssh = pexpect.spawn ("ssh " + user + "@" + host)
+	#ssh.logfile= something i dont know its not working.
+	i=ssh.expect([ssh_newkey,'.*assword:.*',pexpect.EOF,pexpect.TIMEOUT],5)
+	if i==0:
+		print "Accepting Key"
+		ssh.sendline('yes')
+		i=ssh.expect([ssh_newkey,'.*assword:.*',pexpect.EOF,pexpect.TIMEOUT],5)	
+	if i==1:
+		print "expect gave your password"
+		ssh.sendline(passwd)
+	elif i==2:
+		print "I can't do shit"
+		pass
+	elif i==3:
+		print "timeout"
+		pass
+
+	ssh.expect ('.*>.*')
+	ssh.sendline ('ena')
+	ssh.expect ('.*assword:.*')
+	ssh.sendline (en)
+	
+	i=ssh.expect (['.*#.*','.*>.*'])
+	if i==0:
+		print "now in enable mode"
+	if i==1:
+		print "wrong enable password.  Exiting ssh session"		
+		ssh.sendline("exit")
+		exit()
+	print host
+	#face=open('./interfaces','w')
+	ssh.sendline("terminal length 0")
+	ssh.expect('.*#.*')
+	ssh.sendline("conf t")
+	ssh.expect('.*config.*')	
+	ssh.sendline('snmp-server location ' + dist)
+	ssh.sendline("end")
+	ssh.sendline("write")
+	ssh.expect('.*#.*')
+	print ssh.after
+	ssh.sendline("exit")	
+	ssh.terminate()
+	print "done with host moving to next router"
+
+sys.exit()
+
+
+
+
+
+
